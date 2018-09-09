@@ -17,7 +17,7 @@ function Login {
 }
 
 
-function InitVMs {# Creates all VMDrives (Differencing)/Links to Parent Disk and VMs
+function InitVMs {
     New-VHD -Path 'C:\Users\Public\Documents\Hyper-V\Virtual hard disks\DNS1.vhdx' -ParentPath $VHDX_ParentDrive
     New-VHD -Path 'C:\Users\Public\Documents\Hyper-V\Virtual hard disks\DNS2.vhdx' -ParentPath $VHDX_ParentDrive
     New-VHD -Path 'C:\Users\Public\Documents\Hyper-V\Virtual hard disks\WWW.vhdx' -ParentPath $VHDX_ParentDrive
@@ -34,24 +34,23 @@ function InitVMs {# Creates all VMDrives (Differencing)/Links to Parent Disk and
 
 
 function main {
-    #Clears System from past lab.
+    
     ClearSystem
-    #Variables set
+
     $StationNumber = Read-Host 'Please insert your Station Number: ';
     $VHDX_Drive = Get-Volume | ogv -Title 'Pick Virtual Drive: ' -PassThru;
     $VHDX_Path = $VHDX_Drive.DriveLetter
-    $VHDX_ParentDrive = Get-Item -Path "$($VHDX_Path):\Users\Public\Documents\Hyper-V\Parent Hard Disks\*.vhdx" | ogv -Title 'Pick Parent Disk:' -PassThru
+    $VHDX_ParentDrive = Get-Item -Path "$($VHDX_Path):\VHDs\Parent\*.vhdx" | ogv -Title 'Pick Parent Disk:' -PassThru
 
-    #Creates Virtual Switch:
     New-VMSwitch -Name Public -SwitchType Internal # Creates Virtual Switch
     New-NetIPAddress -IPAddress 172.16.0.1 -PrefixLength 16 -InterfaceAlias 'vEthernet (Public)' # Sets virtual's swtich default gateway and prefix
-    New-NetNat -Name Public -InternalIPInterfaceAddressPrefix 172.16.0.0/16 # Creates NAT Network on VMSwitch
+    New-NetNat -Name Public -InternalIPInterfaceAddressPrefix 172.16.0.0/16 # Sets the Actual NAT.
 
     InitVMs
 
-    $loginCred = Login 
+    $loginCred = Login
 
-Invoke-Command -VMName DNS1 -Credential $loginCred -ArgumentList $StationNumber -ScriptBlock { # Remotes into VM and runs block
+Invoke-Command -VMName DNS1 -Credential $loginCred -ArgumentList $StationNumber -ScriptBlock {
     param($StationNumber)
     New-NetIPAddress -IPAddress 172.16.0.2 -PrefixLength 16 -InterfaceAlias Ethernet -DefaultGateway 172.16.0.1
     Set-DnsClientServerAddress -ServerAddresses 127.0.0.1,172.16.0.3 -InterfaceAlias Ethernet
